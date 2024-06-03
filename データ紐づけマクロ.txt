@@ -21,10 +21,11 @@ Sub OutputEmployeeData()
     Dim genderColCount As Long
 
     ' シートの取得
-    Set wsNameList = ThisWorkbook.Sheets("名簿")
-    Set wsYomigana = ThisWorkbook.Sheets("ヨミガナ")
-    Set wsGender = ThisWorkbook.Sheets("ジェンダー")
+    Set wsNameList = GetSheet("名簿")
+    Set wsYomigana = GetSheet("ヨミガナ")
+    Set wsGender = GetSheet("ジェンダー")
     
+    ' シートが見つからない場合はエラーを表示して終了
     If wsNameList Is Nothing Or wsYomigana Is Nothing Or wsGender Is Nothing Then
         MsgBox "いずれかのシートが見つかりません。", vbExclamation
         Exit Sub
@@ -138,5 +139,11 @@ Function FindHeaderRow(sheet As Worksheet, ByRef empNumCol As Long) As Long
         Next j
     Next i
     FindHeaderRow = 0 ' 見つからなかった場合は0を返す
+End Function
+
+Function GetSheet(sheetName As String) As Worksheet
+    On Error Resume Next
+    Set GetSheet = ThisWorkbook.Sheets(sheetName)
+    On Error GoTo 0
 End Function
 

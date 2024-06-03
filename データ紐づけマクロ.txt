@@ -1,0 +1,142 @@
+Sub OutputEmployeeData()
+    Dim wsNameList As Worksheet
+    Dim wsYomigana As Worksheet
+    Dim wsGender As Worksheet
+    Dim wsOutput As Worksheet
+    Dim lastRowNameList As Long
+    Dim lastRowYomigana As Long
+    Dim lastRowGender As Long
+    Dim headerRowNameList As Long
+    Dim headerRowYomigana As Long
+    Dim headerRowGender As Long
+    Dim empNumColNameList As Long
+    Dim empNumColYomigana As Long
+    Dim empNumColGender As Long
+    Dim i As Long, j As Long, k As Long
+    Dim empNum As String
+    Dim foundMatchYomigana As Boolean
+    Dim foundMatchGender As Boolean
+    Dim nameListColCount As Long
+    Dim yomiganaColCount As Long
+    Dim genderColCount As Long
+
+    ' シートの取得
+    Set wsNameList = ThisWorkbook.Sheets("名簿")
+    Set wsYomigana = ThisWorkbook.Sheets("ヨミガナ")
+    Set wsGender = ThisWorkbook.Sheets("ジェンダー")
+    
+    If wsNameList Is Nothing Or wsYomigana Is Nothing Or wsGender Is Nothing Then
+        MsgBox "いずれかのシートが見つかりません。", vbExclamation
+        Exit Sub
+    End If
+    
+    ' 出力用シートの作成
+    On Error Resume Next
+    Set wsOutput = ThisWorkbook.Sheets("社員情報")
+    On Error GoTo 0
+    If wsOutput Is Nothing Then
+        Set wsOutput = ThisWorkbook.Sheets.Add(After:=Sheets(Sheets.Count))
+        wsOutput.Name = "社員情報"
+    Else
+        wsOutput.Cells.Clear ' 既存のデータをクリア
+    End If
+    
+    ' ヘッダー行と社員番号列を探す
+    headerRowNameList = FindHeaderRow(wsNameList, empNumColNameList)
+    headerRowYomigana = FindHeaderRow(wsYomigana, empNumColYomigana)
+    headerRowGender = FindHeaderRow(wsGender, empNumColGender)
+    
+    ' 最終行を取得
+    lastRowNameList = wsNameList.Cells(wsNameList.Rows.Count, empNumColNameList).End(xlUp).Row
+    lastRowYomigana = wsYomigana.Cells(wsYomigana.Rows.Count, empNumColYomigana).End(xlUp).Row
+    lastRowGender = wsGender.Cells(wsGender.Rows.Count, empNumColGender).End(xlUp).Row
+
+    ' 各シートの列数を取得
+    nameListColCount = wsNameList.Cells(headerRowNameList, wsNameList.Columns.Count).End(xlToLeft).Column
+    yomiganaColCount = wsYomigana.Cells(headerRowYomigana, wsYomigana.Columns.Count).End(xlToLeft).Column
+    genderColCount = wsGender.Cells(headerRowGender, wsGender.Columns.Count).End(xlToLeft).Column
+
+    ' ヘッダー行を出力
+    For i = 1 To nameListColCount
+        wsOutput.Cells(1, i).Value = wsNameList.Cells(headerRowNameList, i).Value
+    Next i
+    For j = 1 To yomiganaColCount
+        wsOutput.Cells(1, nameListColCount + j).Value = wsYomigana.Cells(headerRowYomigana, j).Value
+    Next j
+    For k = 1 To genderColCount
+        wsOutput.Cells(1, nameListColCount + yomiganaColCount + k).Value = wsGender.Cells(headerRowGender, k).Value
+    Next k
+
+    ' 名簿シートとヨミガナシートとジェンダーシートの社員番号を紐づけてデータを出力
+    Dim outputRow As Long
+    outputRow = 2
+    
+    For i = headerRowNameList + 1 To lastRowNameList
+        empNum = wsNameList.Cells(i, empNumColNameList).Value
+        foundMatchYomigana = False ' 初期化
+        foundMatchGender = False ' 初期化
+
+        ' ヨミガナシートのデータを出力
+        For j = headerRowYomigana + 1 To lastRowYomigana
+            If wsYomigana.Cells(j, empNumColYomigana).Value = empNum Then
+                For k = 1 To yomiganaColCount
+                    wsOutput.Cells(outputRow, nameListColCount + k).Value = wsYomigana.Cells(j, k).Value
+                Next k
+                foundMatchYomigana = True
+                Exit For
+            End If
+        Next j
+
+        If Not foundMatchYomigana Then
+            For k = 1 To yomiganaColCount
+                wsOutput.Cells(outputRow, nameListColCount + k).Value = ""
+            Next k
+        End If
+
+        ' 名簿シートのデータを出力
+        For k = 1 To nameListColCount
+            wsOutput.Cells(outputRow, k).Value = wsNameList.Cells(i, k).Value
+        Next k
+
+        ' ジェンダーシートのデータを出力
+        For j = headerRowGender + 1 To lastRowGender
+            If wsGender.Cells(j, empNumColGender).Value = empNum Then
+                For k = 1 To genderColCount
+                    wsOutput.Cells(outputRow, nameListColCount + yomiganaColCount + k).Value = wsGender.Cells(j, k).Value
+                Next k
+                foundMatchGender = True
+                Exit For
+            End If
+        Next j
+
+        If Not foundMatchGender Then
+            For k = 1 To genderColCount
+                wsOutput.Cells(outputRow, nameListColCount + yomiganaColCount + k).Value = ""
+            Next k
+        End If
+        
+        outputRow = outputRow + 1
+    Next i
+
+    wsOutput.Columns.AutoFit
+    MsgBox "社員情報シートにデータが出力されました。", vbInformation
+End Sub
+
+Function FindHeaderRow(sheet As Worksheet, ByRef empNumCol As Long) As Long
+    Dim i As Long, j As Long
+    Dim regex As Object
+    Set regex = CreateObject("VBScript.RegExp")
+    regex.Pattern = "社員番号"
+
+    For i = 1 To sheet.Rows.Count
+        For j = 1 To sheet.Cells(i, sheet.Columns.Count).End(xlToLeft).Column
+            If regex.Test(sheet.Cells(i, j).Value) Then
+                empNumCol = j
+                FindHeaderRow = i
+                Exit Function
+            End If
+        Next j
+    Next i
+    FindHeaderRow = 0 ' 見つからなかった場合は0を返す
+End Function
+

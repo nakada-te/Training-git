@@ -1,77 +1,73 @@
-Sub ExtractNAData()
+Sub ExtractNonNAData()
     Dim wsSource As Worksheet
     Dim wsDest As Worksheet
     Dim lastRow As Long
     Dim lastCol As Long
     Dim destRow As Long
     Dim i As Long, j As Long
+    Dim includeRow As Boolean
+    Dim rngToCopy As Range
+    Dim currentRange As Range
 
-    ' Set the source and destination worksheets
-    Set wsSource = ThisWorkbook.Sheets("Sheet1") ' 元のデータがあるシート名に変更してください
+    ' ソースとするシートを設定
+    Set wsSource = ThisWorkbook.Sheets("Sheet1") ' データがあるシート名に変更してください
 
-    ' シートを表示
+    ' ソースシートを表示状態にする
     wsSource.Visible = xlSheetVisible
 
-    ' Create or set the destination worksheet
+    ' デスティネーションシートを作成または設定
     On Error Resume Next
-    Set wsDest = ThisWorkbook.Sheets("NA_Data")
+    Set wsDest = ThisWorkbook.Sheets("NonNA_Data")
     If wsDest Is Nothing Then
         Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
-        wsDest.Name = "NA_Data"
+        wsDest.Name = "NonNA_Data"
     End If
     On Error GoTo 0
 
-    ' Clear previous data in the destination sheet
+    ' デスティネーションシートの以前のデータをクリア
     wsDest.Cells.Clear
 
-    ' Find the last row and column in the source worksheet
+    ' ソースシートの最終行と最終列を取得
     lastRow = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
     lastCol = wsSource.Cells(1, wsSource.Columns.Count).End(xlToLeft).Column
 
-    ' Copy header row from source to destination
-    wsDest.Cells(1, 1).Value = "エラー先のシート名"
-    For j = 1 To lastCol
-        wsDest.Cells(1, j + 1).Value = wsSource.Cells(1, j).Value
-    Next j
+    ' ヘッダー行をソースからデスティネーションにコピー
+    wsSource.Rows(1).Copy Destination:=wsDest.Rows(1)
 
-    ' Initialize the destination row counter
+    ' デスティネーション行カウンタの初期化
     destRow = 2
 
-    ' Loop through each row in the source worksheet
-    For i = 2 To lastRow ' Starting from 2 to skip header row
-        ' Check each cell in the row for #N/A
+    ' ソースシートの各行をループ
+    For i = 2 To lastRow ' 2行目から開始してヘッダー行をスキップ
+        includeRow = True
+        ' 各行のセルをチェックして#N/Aがあるか確認
         For j = 1 To lastCol
             If IsError(wsSource.Cells(i, j)) Then
                 If wsSource.Cells(i, j).Text = "#N/A" Then
-                    ' Copy the entire row to the destination worksheet
-                    wsDest.Cells(destRow, 1).Value = "エラー先のシート名"
-                    For k = 1 To lastCol
-                        If IsError(wsSource.Cells(i, k)) Then
-                            If wsSource.Cells(i, k).Text = "#N/A" Then
-                                wsDest.Cells(destRow, k + 1).Value = "#N/A"
-                            Else
-                                wsDest.Cells(destRow, k + 1).Value = wsSource.Cells(i, k).Text
-                            End If
-                        Else
-                            wsDest.Cells(destRow, k + 1).Value = wsSource.Cells(i, k).Value
-                        End If
-                    Next k
-                    destRow = destRow + 1
+                    includeRow = False
                     Exit For
                 End If
             End If
         Next j
+        ' #N/Aが見つからなければ、行を範囲に追加
+        If includeRow Then
+            If rngToCopy Is Nothing Then
+                Set rngToCopy = wsSource.Rows(i)
+            Else
+                Set rngToCopy = Union(rngToCopy, wsSource.Rows(i))
+            End If
+        End If
     Next i
 
-    ' Autofit the columns in the destination worksheet
-    wsDest.Columns.AutoFit
-
-    ' フィルターを解除
-    If wsDest.AutoFilterMode Then
-        wsDest.AutoFilterMode = False
+    ' まとめてコピー
+    If Not rngToCopy Is Nothing Then
+        rngToCopy.Copy Destination:=wsDest.Rows(destRow)
     End If
 
-    MsgBox "Data with #N/A values has been extracted to 'NA_Data' sheet.", vbInformation
+    ' デスティネーションシートの列を自動調整
+    wsDest.Columns.AutoFit
+
+    MsgBox "データが#N/Aのない状態で'NonNA_Data'シートに抽出されました。", vbInformation
 End Sub
 
 

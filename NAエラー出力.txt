@@ -7,7 +7,6 @@ Sub ExtractNonNAData()
     Dim i As Long, j As Long
     Dim includeRow As Boolean
     Dim rngToCopy As Range
-    Dim currentRange As Range
 
     ' ソースとするシートを設定
     Set wsSource = ThisWorkbook.Sheets("Sheet1") ' データがあるシート名に変更してください
@@ -43,6 +42,13 @@ Sub ExtractNonNAData()
         ' 各行のセルをチェックして#N/Aがあるか確認
         For j = 1 To lastCol
             If IsError(wsSource.Cells(i, j)) Then
+                ' エラー値としての#N/Aを確認
+                If WorksheetFunction.IsNA(wsSource.Cells(i, j)) Then
+                    includeRow = False
+                    Exit For
+                End If
+            Else
+                ' テキストとしての#N/Aを確認
                 If wsSource.Cells(i, j).Text = "#N/A" Then
                     includeRow = False
                     Exit For
@@ -68,71 +74,4 @@ Sub ExtractNonNAData()
     wsDest.Columns.AutoFit
 
     MsgBox "データが#N/Aのない状態で'NonNA_Data'シートに抽出されました。", vbInformation
-End Sub
-
-
-Sub ExtractNonNAData()
-    Dim wsSource As Worksheet
-    Dim wsDest As Worksheet
-    Dim lastRow As Long
-    Dim lastCol As Long
-    Dim destRow As Long
-    Dim i As Long, j As Long
-    Dim includeRow As Boolean
-
-    ' Set the source and destination worksheets
-    Set wsSource = ThisWorkbook.Sheets("Sheet1") ' 元のデータがあるシート名に変更してください
-
-    ' Ensure the source sheet is visible
-    wsSource.Visible = xlSheetVisible
-
-    ' Create or set the destination worksheet
-    On Error Resume Next
-    Set wsDest = ThisWorkbook.Sheets("NonNA_Data")
-    If wsDest Is Nothing Then
-        Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
-        wsDest.Name = "NonNA_Data"
-    End If
-    On Error GoTo 0
-
-    ' Clear previous data in the destination sheet
-    wsDest.Cells.Clear
-
-    ' Find the last row and column in the source worksheet
-    lastRow = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
-    lastCol = wsSource.Cells(1, wsSource.Columns.Count).End(xlToLeft).Column
-
-    ' Copy header row from source to destination
-    For j = 1 To lastCol
-        wsDest.Cells(1, j).Value = wsSource.Cells(1, j).Value
-    Next j
-
-    ' Initialize the destination row counter
-    destRow = 2
-
-    ' Loop through each row in the source worksheet
-    For i = 2 To lastRow ' Starting from 2 to skip header row
-        includeRow = True
-        ' Check each cell in the row for #N/A
-        For j = 1 To lastCol
-            If IsError(wsSource.Cells(i, j)) Then
-                If wsSource.Cells(i, j).Text = "#N/A" Then
-                    includeRow = False
-                    Exit For
-                End If
-            End If
-        Next j
-        ' If no #N/A found, copy the row to the destination sheet
-        If includeRow Then
-            For j = 1 To lastCol
-                wsDest.Cells(destRow, j).Value = wsSource.Cells(i, j).Value
-            Next j
-            destRow = destRow + 1
-        End If
-    Next i
-
-    ' Autofit the columns in the destination worksheet
-    wsDest.Columns.AutoFit
-
-    MsgBox "Data without #N/A values has been extracted to 'NonNA_Data' sheet.", vbInformation
 End Sub

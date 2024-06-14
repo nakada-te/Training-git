@@ -1,3 +1,81 @@
+時間がかかるやつ
+
+Sub ExtractSpecificErrorData()
+    Dim wsSource As Worksheet
+    Dim wsDest As Worksheet
+    Dim lastRow As Long
+    Dim lastCol As Long
+    Dim destRow As Long
+    Dim i As Long, j As Long
+    Dim includeRow As Boolean
+
+    ' ソースとするシートを設定
+    Set wsSource = ThisWorkbook.Sheets("Sheet1") ' データがあるシート名に変更してください
+
+    ' ソースシートを表示状態にする
+    wsSource.Visible = xlSheetVisible
+
+    ' デスティネーションシートを作成または設定
+    On Error Resume Next
+    Set wsDest = ThisWorkbook.Sheets("Error_Data")
+    If wsDest Is Nothing Then
+        Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        wsDest.Name = "Error_Data"
+    End If
+    On Error GoTo 0
+
+    ' デスティネーションシートの以前のデータをクリア
+    wsDest.Cells.Clear
+
+    ' ソースシートの最終行と最終列を取得
+    lastRow = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
+    lastCol = wsSource.Cells(1, wsSource.Columns.Count).End(xlToLeft).Column
+
+    ' ヘッダー行をソースからデスティネーションにコピー（B列から）
+    wsSource.Rows(1).Resize(, lastCol).Copy Destination:=wsDest.Cells(1, 2)
+
+    ' デスティネーション行カウンタの初期化
+    destRow = 2
+
+    ' ソースシートの各行をループ
+    For i = 2 To lastRow ' 2行目から開始してヘッダー行をスキップ
+        includeRow = False
+        ' 各行のセルをチェックして特定のエラーがあるか確認
+        For j = 1 To lastCol
+            If IsError(wsSource.Cells(i, j)) Then
+                ' 特定のエラー（#N/A, #DIV/0!, #VALUE! など）を確認
+                If WorksheetFunction.IsNA(wsSource.Cells(i, j)) Or _
+                   wsSource.Cells(i, j).Text = "#DIV/0!" Or _
+                   wsSource.Cells(i, j).Text = "#VALUE!" Then
+                    includeRow = True
+                    Exit For
+                End If
+            End If
+        Next j
+        ' 特定のエラーが見つかった場合、行を範囲に追加
+        If includeRow Then
+            ' A列に任意の関数を入力し、B列からデータをコピー
+            wsDest.Cells(destRow, 1).Formula = "=任意の関数" ' 任意の関数をここに入力してください
+            For k = 1 To lastCol
+                wsDest.Cells(destRow, k + 1).Value = wsSource.Cells(i, k).Value
+            Next k
+            destRow = destRow + 1
+        End If
+    Next i
+
+    ' デスティネーションシートの列を自動調整
+    wsDest.Columns.AutoFit
+
+    MsgBox "特定のエラーを含む行が'Error_Data'シートに抽出されました。", vbInformation
+End Sub
+
+
+
+
+
+
+
+
 Sub ExtractNAData()
     Dim wsSource As Worksheet
     Dim wsDest As Worksheet
@@ -87,6 +165,113 @@ Sub ExtractNAData()
 
         ' A列に任意の関数を入力
         For Each cell In wsDest.Range(wsDest.Cells(destRow, 1), wsDest.Cells(destRow + rngToCopy.Rows.Count - 1, 1))
+            cell.Formula = "=任意の関数" ' 任意の関数をここに入力してください
+        Next cell
+    End If
+
+    ' デスティネーションシートの列を自動調整
+    wsDest.Columns.AutoFit
+
+    MsgBox "#N/Aエラーを含む行が'NA_Data'シートに抽出されました。", vbInformation
+End Sub
+
+
+
+
+
+
+最新
+Sub ExtractNAData()
+    Dim wsSource As Worksheet
+    Dim wsDest As Worksheet
+    Dim lastRow As Long
+    Dim lastCol As Long
+    Dim destRow As Long
+    Dim i As Long, j As Long
+    Dim includeRow As Boolean
+    Dim rngToCopy As Range
+    Dim cell As Range
+    Dim sheetName As String
+    Dim retry As Integer
+
+    ' ソースとするシートを設定
+    Set wsSource = ThisWorkbook.Sheets("Sheet1") ' データがあるシート名に変更してください
+
+    ' ソースシートを表示状態にする
+    wsSource.Visible = xlSheetVisible
+
+    ' デスティネーションシートを作成または設定
+    sheetName = "NA_Data"
+    On Error Resume Next
+    Set wsDest = ThisWorkbook.Sheets(sheetName)
+    If wsDest Is Nothing Then
+        Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        wsDest.Name = sheetName
+    End If
+    On Error GoTo 0
+
+    ' デスティネーションシートの以前のデータをクリア
+    wsDest.Cells.Clear
+
+    ' ソースシートの最終行と最終列を取得
+    lastRow = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
+    lastCol = wsSource.Cells(1, wsSource.Columns.Count).End(xlToLeft).Column
+
+    ' ヘッダー行をソースからデスティネーションにコピー（B列から）
+    wsSource.Rows(1).Resize(, lastCol).Copy Destination:=wsDest.Cells(1, 2)
+
+    ' デスティネーション行カウンタの初期化
+    destRow = 2
+
+    ' コピーする行を収集
+    For i = 2 To lastRow ' 2行目から開始してヘッダー行をスキップ
+        includeRow = False
+        ' 各行のセルをチェックして#N/Aがあるか確認
+        For j = 1 To lastCol
+            If IsError(wsSource.Cells(i, j)) Then
+                ' エラー値としての#N/Aを確認
+                If WorksheetFunction.IsNA(wsSource.Cells(i, j)) Then
+                    includeRow = True
+                    Exit For
+                End If
+            Else
+                ' テキストとしての#N/Aを確認
+                If wsSource.Cells(i, j).Text = "#N/A" Then
+                    includeRow = True
+                    Exit For
+                End If
+            End If
+        Next j
+        ' #N/Aエラーが見つかった場合、行を範囲に追加
+        If includeRow Then
+            If rngToCopy Is Nothing Then
+                Set rngToCopy = wsSource.Rows(i)
+            Else
+                Set rngToCopy = Union(rngToCopy, wsSource.Rows(i))
+            End If
+        End If
+    Next i
+
+    ' まとめてコピー
+    If Not rngToCopy Is Nothing Then
+        retry = 0
+        Do While retry < 3
+            On Error Resume Next
+            rngToCopy.Copy Destination:=wsDest.Cells(destRow, 2)
+            If Err.Number = 0 Then
+                Exit Do
+            Else
+                retry = retry + 1
+                Application.Wait (Now + TimeValue("0:00:01")) ' 1秒待機
+                Err.Clear
+            End If
+            On Error GoTo 0
+        Loop
+
+        ' A列に任意の関数を入力
+        Dim rowCount As Long
+        rowCount = rngToCopy.Rows.Count
+        For Each cell In wsDest.Range(wsDest.Cells(destRow, 1), wsDest.Cells(destRow + rowCount - 1, 1))
             cell.Formula = "=任意の関数" ' 任意の関数をここに入力してください
         Next cell
     End If
